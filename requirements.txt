@@ -1,0 +1,32 @@
+# Core LangChain
+langchain
+langchain-core
+langchain-community
+langchain-text-splitters
+langgraph
+
+# LLM Providers
+langchain-openai
+langchain-anthropic
+langchain-google-genai
+langchain-ollama
+langchain-groq
+langchain-huggingface
+
+# Vector Stores & Embeddings
+faiss-cpu
+chromadb
+sentence-transformers
+
+# Document Loaders
+pypdf
+python-docx
+beautifulsoup4
+unstructured
+
+# Utilities
+python-dotenv
+tiktoken
+openai
+google-generativeai
+pysqlite3-binary
