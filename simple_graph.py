@@ -32,6 +32,6 @@ graph.add_edge(START, "model")
 graph.add_edge("model", END)
 final = graph.compile()
 
-result = final.invoke({"messages": ["You're worst"]})
+result = final.invoke({"messages": ["multiply 2 and 293 "]})
 
-print("output: \n",result)
+print("output: \n",result['messages'][1:])
