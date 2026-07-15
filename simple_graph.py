@@ -39,6 +39,9 @@ result = final.invoke({"messages": ["multiply 2 and 293 "]}, config)
 
 print("output: \n",result['messages'][-1].content,"\n\n\n")
 
-result = final.invoke({"messages": ["multiply 7 and 34 "]}, config)
+result = final.invoke({"messages": ["Now multiply the answer with 34"]}, config)
 
 print("output: \n",result['messages'][-1].content)
+
+result = final.invoke({"messages": ["what were my questions?"]}, config)
+print(result['messages'][-1].content)
