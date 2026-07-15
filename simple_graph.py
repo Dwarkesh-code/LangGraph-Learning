@@ -1,7 +1,7 @@
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END, MessagesState
 from dotenv import load_dotenv
-from typing import TypedDict
+from langgraph.prebuilt import ToolNode
 from langchain.tools import tool
 
 
@@ -16,7 +16,7 @@ def multiply(a: int, b: int) -> int:
         b = second int"""
     return a*b
 
-
+tool_nodes = ToolNode([multiply])
 
 llm = ChatGroq(model="llama-3.1-8b-instant")
 llm_with_tools= llm.bind_tools([multiply])
@@ -28,10 +28,12 @@ def model(state:MessagesState):
 
 graph = StateGraph(MessagesState)
 graph.add_node("model", model)
+graph.add_node("tools", tool_nodes)
 graph.add_edge(START, "model")
-graph.add_edge("model", END)
+graph.add_edge("model", "tools")
+graph.add_edge("tools", END)
 final = graph.compile()
 
 result = final.invoke({"messages": ["multiply 2 and 293 "]})
 
-print("output: \n",result['messages'][1:])
+print("output: \n",result['messages'])
