@@ -21,19 +21,19 @@ structure_model = model.with_structured_output(FeedScorSchema)
 #state 
 class ContentState(TypedDict):
     paragraph : str
-    cliarity_feed : str
+    clarity_feed : str
     depth_feed : str
     engage_feed : str
-    indivisual_scores : Annotated[list[int] ,add]
+    individual_scores : Annotated[list[int] ,add]
     overall_feedback : str 
 
 
 #nodes
 
-def cliarity_node(state: ContentState)-> ContentState: 
+def clarity_node(state: ContentState)-> ContentState: 
     #prompt
     prompt = PromptTemplate(
-        template= """Evalute the cliarity and Non technical person's understanding, of the 
+        template= """Evalute the clarity and Non technical person's understanding, of the 
             following Paragaraph and provide a feedback and score out of 10 
             Paragraph => \n{paragraph}  """,
         input_variables= ['paragraph']
@@ -43,7 +43,7 @@ def cliarity_node(state: ContentState)-> ContentState:
 
     output = chain.invoke({"paragraph": state['paragraph']})
 
-    return {"cliarity_feed": output.feedback, "indivisual_scores": [output.score]}
+    return {"clarity_feed": output.feedback, "individual_scores": [output.score]}
 
 def depth_node(state: ContentState)-> ContentState: 
     #prompt
@@ -58,7 +58,7 @@ def depth_node(state: ContentState)-> ContentState:
 
     output = chain.invoke({"paragraph": state['paragraph']})
 
-    return {"depth_feed": output.feedback, "indivisual_scores": [output.score]}
+    return {"depth_feed": output.feedback, "individual_scores": [output.score]}
 
 
 def engage_node(state: ContentState)-> ContentState: 
@@ -74,7 +74,7 @@ def engage_node(state: ContentState)-> ContentState:
 
     output = chain.invoke({"paragraph": state['paragraph']})
 
-    return {"engage_feed": output.feedback, "indivisual_scores": [output.score]}
+    return {"engage_feed": output.feedback, "individual_scores": [output.score]}
 
 
 
@@ -83,21 +83,21 @@ def overall_node(state: ContentState)-> ContentState:
     prompt = PromptTemplate(
         template= """Generate Overall feedback of paragraph based on feedbacks and scores  
             \nParagraph => \n{paragraph}
-            \nCliarity Feedback => {cliarity}
+            \nclarity Feedback => {clarity}
             \nTechnical Depth Feedback => {depth}
             \nEngagement/hook Feedback => {engage}
-            \nIndivisual scores => {scores}""",
-        input_variables= ['paragraph', 'cliarity', 'depth', 'engage', "scores"]
+            \nindividual scores => {scores}""",
+        input_variables= ['paragraph', 'clarity', 'depth', 'engage', "scores"]
     )
 
     chain = prompt| model
 
     output = chain.invoke({
         "paragraph": state['paragraph'],
-        "cliarity": state['cliarity_feed'],
+        "clarity": state['clarity_feed'],
         "depth": state['depth_feed'],
         "engage": state["engage_feed"],
-        "scores": state['indivisual_scores']
+        "scores": state['individual_scores']
         })
 
     return {"overall_feedback": output.content}
@@ -107,19 +107,19 @@ def overall_node(state: ContentState)-> ContentState:
 graph = StateGraph(ContentState)
 
 # add nodes
-graph.add_node("cliarity", cliarity_node)
+graph.add_node("clarity", clarity_node)
 graph.add_node("depth", depth_node)
 graph.add_node("engage", engage_node)
 graph.add_node("overall", overall_node)
 
 #add edges
 
-graph.add_edge(START, "cliarity")
+graph.add_edge(START, "clarity")
 graph.add_edge(START, "depth")
 graph.add_edge(START, "engage")
 
 
-graph.add_edge("cliarity", "overall")
+graph.add_edge("clarity", "overall")
 graph.add_edge("depth", "overall")
 graph.add_edge("engage", "overall")
 
@@ -228,16 +228,16 @@ GitHub LinkedIn Discord"""
 #paragraph = input("User > ")
 
 intial_state = {"paragraph" : paragraph1,
-    "cliarity_feed" : "",
+    "clarity_feed" : "",
     "depth_feed" : "",
     "engage_feed" : "",
-    "indivisual_scores" : [], 
+    "individual_scores" : [], 
     "overall_feedback" : ""}
 
 res = workflow.invoke(intial_state)
 
 print("\n\n\nOverall Feedback => ", res["overall_feedback"])
-print("\n\n\nCliarity => ", res["cliarity_feed"])
+print("\n\n\nclarity => ", res["clarity_feed"])
 print("\n\n\nDepth => ", res["depth_feed"])
 print("\n\n\nEngage => ", res["engage_feed"])
-print("\n\n\nScores => ", res["indivisual_scores"])
+print("\n\n\nScores => ", res["individual_scores"])
