@@ -157,3 +157,5 @@ if st.button("Grade it", disabled=not paragraph.strip()):
 
     with st.expander("Individual scores"):
         st.write(res["individual_scores"])
+
+st.image(workflow.get_graph().draw_mermaid_png())
