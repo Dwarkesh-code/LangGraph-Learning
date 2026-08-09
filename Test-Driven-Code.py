@@ -255,10 +255,11 @@ graph.add_edge("runner", "approve")
 workflow = graph.compile()
 
 
-# -------- Initial state for testing --------
 if __name__ == "__main__":
+    user_query = input("Enter your query: ")
+
     initial_state: TestState = {
-        "query": "Write a Python function that takes a list of integers and returns the sum of all even numbers. Return 0 for an empty list.",
+        "query": user_query,
         "tests": [],
         "precode": "",
         "newcode": "",
