@@ -9,7 +9,7 @@ from langchain_core.prompts import PromptTemplate
 
 load_dotenv()
 
-model = ChatGroq(model="llama-3.3-70b-versatile")
+model = ChatGroq(model="llama-3.1-8b-instant")
 
 
 #state
@@ -147,7 +147,7 @@ def test_designer_node(state:TestState) -> TestState:
     chain = prompt | str_tests_model 
     response = chain.invoke({"instruction": state["tester_prompt"]})
 
-    return {"tests": response.tests, "total_tests" : response.total_tests}
+    return {"tests": [response.tests], "total_tests" : response.total_tests}
 
 
 def code_runner_node(state:TestState) -> TestState : 
@@ -181,8 +181,76 @@ def code_runner_node(state:TestState) -> TestState :
         - feedback: One concise paragraph (2-3 lines) explaining what to fix. Reference failed test names. If verdict is "approved", feedback can be "All tests pass."
         """)
 
-    chain = prompt | model 
+    chain = prompt | str_runner_model 
     response = chain.invoke({"code": state['newcode'],"total_tests": state["total_tests"], "tests": state["tests"]})
 
     return {"code_feedback": response.feedback, "pass_tests": response.pass_tests, "verdict": response.verdict}
 
+def approve_node(state:TestState) -> TestState: 
+    if state["total_tests"] == state["pass_tests"] : 
+        state["verdict"] = "approved"
+
+    state["verdict"] = state["verdict"]
+    return state
+
+def route_verdict(state: TestState) -> str:
+    if state["verdict"] == "approved":
+        return "approved"
+    return "pending"
+
+#graph 
+
+graph = StateGraph(TestState)
+
+#add nodes 
+graph.add_node("summarizer", summarize_query_node)
+graph.add_node("coder", code_writer_node)
+graph.add_node("tester", test_designer_node)
+graph.add_node("runner", code_runner_node)
+graph.add_node("approve", approve_node)
+
+#add edges
+graph.add_edge(START, "summarizer")
+graph.add_edge("summarizer", "coder")
+graph.add_edge("summarizer", "tester")
+graph.add_edge("tester", "runner")
+graph.add_edge("coder", "runner")
+graph.add_edge("runner", "approve")
+
+graph.add_conditional_edges("approve", route_verdict, {'approved': END, 'pending': "coder"})
+graph.add_edge("coder", "runner")
+graph.add_edge("runner", "approve")
+
+#workflow 
+workflow = graph.compile()
+
+
+# -------- Initial state for testing --------
+if __name__ == "__main__":
+    initial_state: TestState = {
+        "query": "Write a Python function that takes a list of integers and returns the sum of all even numbers. Return 0 for an empty list.",
+        "tests": [],
+        "precode": "",
+        "newcode": "",
+        "total_tests": 0,
+        "verdict": "pending",
+        "coder_prompt": "",
+        "tester_prompt": "",
+        "code_feedback": "",
+        "attempt": 1,
+        "pass_tests": 0
+    }
+    
+    result = workflow.invoke(initial_state)
+    
+    print("=" * 60)
+    print(f"FINAL VERDICT: {result['verdict']}")
+    print(f"Passed: {result['pass_tests']}/{result['total_tests']}")
+    print("=" * 60)
+    print(f"FINAL CODE (attempt {result['attempt']}):")
+    print("=" * 60)
+    print(result['newcode'])
+    print("\n" + "=" * 60)
+    print("FEEDBACK:")
+    print("=" * 60)
+    print(result['code_feedback'])
