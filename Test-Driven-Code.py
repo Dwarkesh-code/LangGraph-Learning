@@ -25,14 +25,22 @@ class TestState(TypedDict):
     code_feedback : str
     attempt : int
 
-#structure output 
+#structure prompt output 
 
 class StrPrompt(BaseModel): 
     code_prompt: str = Field(description="A clear, standalone prompt for the code-writing model")
     tester_prompt : str = Field(description="A clear, standalone prompt for the test decider  model")
 
-
 str_prompt_model = model.with_structured_output(StrPrompt)
+
+
+#structure tests output
+class StrTester(BaseModel):
+    tests : str = Field(description="Clear, Tests based on instruction")
+    total_tests : int = Field(description="Provide the test count.", ge=1)
+
+str_tests_model = model.with_structured_output(StrTester)
+
 
 #nodes 
 def summarize_query_node(state: TestState) -> TestState:
@@ -92,9 +100,42 @@ def code_writer_node(state:TestState) -> TestState:
         """)
         prompt += prompt1
 
+    #invoke
     chain = prompt| model 
     response = chain.invoke({"instruction": state["coder_prompt"], "feedback": state["code_feedback"], "precode": state["precode"]}).content
 
     return {"newcode": response, "precode": response}
+
+
+def test_designer_node(state:TestState) -> TestState:
+    #prompts 
+    prompt = PromptTemplate.from_template("""
+        You are a senior QA engineer who designs comprehensive test cases for Python functions.
+
+        TASK:
+        Design test cases for the function described below. Cover the full input space.
+
+        FUNCTION SPEC:
+        {instruction}
+
+        REQUIRED TEST CATEGORIES (must include all):
+        1. **Basic / happy path** — typical valid input, function returns expected value
+        2. **Empty / zero / None inputs** — boundary cases
+        3. **Single element** — list with one item, string with one char, etc.
+        4. **All-fail / all-pass edge cases** — inputs where every element triggers or skips the logic
+        5. **Type edge cases** — negative numbers, very large numbers, floats vs ints, mixed types
+        6. **Tricky / off-by-one cases** — inputs designed to catch common bugs
+
+        Output format: one test case per line in this exact format:
+        - test_<short_name>: input=<input_value>, expected=<expected_output>
+
+        Aim for 6-10 test cases minimum. Be ruthless — the goal is to BREAK the implementation, not validate happy paths.
+                """)
+
+    #invoke 
+    chain = prompt | str_tests_model 
+    response = chain.invoke({"instruction": state["tester_prompt"]})
+
+    return {"tests": response.tests, "total_tests" : response.total_tests}
 
 
