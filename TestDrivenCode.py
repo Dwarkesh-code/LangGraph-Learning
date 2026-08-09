@@ -143,7 +143,16 @@ def code_writer_node(state:TestState) -> TestState:
 
     #invoke
     chain = prompt| model 
-    response = chain.invoke({"instruction": state["coder_prompt"], "feedback": state["code_feedback"], "precode": state["precode"]}).content
+    raw = chain.invoke({"instruction": state["coder_prompt"], "feedback": state["code_feedback"], "precode": state["precode"]}).content
+
+    if isinstance(raw, list):
+        response = "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in raw
+        )
+    else:
+        response = raw
+
 
     return {"newcode": response, "precode": response}
 
@@ -223,9 +232,13 @@ def approve_node(state:TestState) -> TestState:
     state["verdict"] = state["verdict"]
     return state
 
+MAX_ATTEMPTS = 7
+
 def route_verdict(state: TestState) -> str:
     if state["verdict"] == "approved":
         return "approved"
+    if state["attempt"] > MAX_ATTEMPTS:
+        return "approved"   
     return "pending"
 
 #graph 
@@ -248,8 +261,6 @@ graph.add_edge("coder", "runner")
 graph.add_edge("runner", "approve")
 
 graph.add_conditional_edges("approve", route_verdict, {'approved': END, 'pending': "coder"})
-graph.add_edge("coder", "runner")
-graph.add_edge("runner", "approve")
 
 #workflow 
 workflow = graph.compile()
