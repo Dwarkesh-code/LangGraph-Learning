@@ -24,6 +24,10 @@ class TestState(TypedDict):
     tester_prompt : str
     code_feedback : str
     attempt : int
+    pass_tests : int
+
+
+#pydantic 
 
 #structure prompt output 
 
@@ -41,6 +45,13 @@ class StrTester(BaseModel):
 
 str_tests_model = model.with_structured_output(StrTester)
 
+#structure runner output
+class StrRunner(BaseModel):
+    feedback: str = Field(description="Generate the feedback according to output, tell what to improve")
+    verdict: Literal["approved", "pending"] = Field(description="'approved' if all tests pass, 'pending' if any test fails")
+    pass_tests: int = Field(description="Total number of tests that passed", ge=0)
+
+str_runner_model = model.with_structured_output(StrRunner)
 
 #nodes 
 def summarize_query_node(state: TestState) -> TestState:
@@ -138,4 +149,40 @@ def test_designer_node(state:TestState) -> TestState:
 
     return {"tests": response.tests, "total_tests" : response.total_tests}
 
+
+def code_runner_node(state:TestState) -> TestState : 
+    #prompt 
+    prompt = PromptTemplate.from_template("""
+        You are a meticulous Python interpreter. Execute the function below against each test case with perfect accuracy — do not assume, do not approximate.
+
+        FUNCTION:
+        {code}
+
+        TOTAL TESTS: {total_tests}
+
+        TEST CASES (one per line):
+        {tests}
+
+        For each test case:
+        1. Identify inputs
+        2. Trace the function step by line
+        3. Determine the exact return value
+        4. Compare to expected
+        5. Mark passed/failed
+
+        ACCURACY RULES:
+        - Do not invent behavior not present in the function code
+        - If input causes an error (IndexError, TypeError, ZeroDivisionError, etc.), mark passed=false
+        - If you cannot determine the output with certainty, mark passed=false and explain why
+
+        OUTPUT:
+        - verdict: "approved" if pass_tests == {total_tests}, otherwise "pending"
+        - pass_tests: count of tests that passed
+        - feedback: One concise paragraph (2-3 lines) explaining what to fix. Reference failed test names. If verdict is "approved", feedback can be "All tests pass."
+        """)
+
+    chain = prompt | model 
+    response = chain.invoke({"code": state['newcode'],"total_tests": state["total_tests"], "tests": state["tests"]})
+
+    return {"code_feedback": response.feedback, "pass_tests": response.pass_tests, "verdict": response.verdict}
 
