@@ -16,12 +16,14 @@ model = ChatGroq(model="llama-3.3-70b-versatile")
 class TestState(TypedDict):
     query : str
     tests : Annotated[list[str], add]
-    precode : Annotated[list[str], add]
+    precode : str
     newcode : str
     total_tests : int
     verdict : Literal['approved', 'pending']
     coder_prompt : str
     tester_prompt : str
+    code_feedback : str
+    attempt : int
 
 #structure output 
 
@@ -62,5 +64,37 @@ def summarize_query_node(state: TestState) -> TestState:
         "tester_prompt": response.tester_prompt
     }
 
+
+def code_writer_node(state:TestState) -> TestState:
+    #prompt 
+    prompt = PromptTemplate.from_template("""
+        You are an expert Python developer who writes production-grade functions.
+
+        TASK:
+        {instruction}
+
+        RULES:
+        - Output ONLY the function definition (def ... : ... and its body)
+        - No prose before or after
+        - No markdown code fences (```), no comments outside the function
+        - Include a docstring (purpose, args, return value)
+        - Handle all edge cases mentioned in the task
+        - Use clean naming and idiomatic Python
+  
+    """)
+
+    if state['attempt'] > 1 :
+        prompt1 = PromptTemplate.from_template("""
+               Feedback => \n{feedback}
+               \n\n
+
+               previous code => \n{precode}    
+        """)
+        prompt += prompt1
+
+    chain = prompt| model 
+    response = chain.invoke({"instruction": state["coder_prompt"], "feedback": state["code_feedback"], "precode": state["precode"]}).content
+
+    return {"newcode": response, "precode": response}
 
 
