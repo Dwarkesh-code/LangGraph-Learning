@@ -5,12 +5,42 @@ from typing import TypedDict, Annotated,Literal
 from pydantic import BaseModel, Field
 from operator import add
 from langchain_core.prompts import PromptTemplate
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 
 load_dotenv()
 
-model = ChatGroq(model="llama-3.1-8b-instant")
 
+#groq router models names
+groq_llms = [
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
+    "qwen/qwen3.6-27b",
+    "llama-3.1-8b-instant"
+]
+
+# gemini llms names 
+gemini_llms = [
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-3-flash"
+]
+
+
+
+model = ChatGroq(model="llama-3.3-70b-versatile", temperature= 0.9)
+main_llms_fallback_models = [
+    ChatGoogleGenerativeAI(model=model_name, temperature=0.9) 
+    for model_name in gemini_llms
+]+ [
+    ChatGroq(model=model_name, temperature=0.9) 
+    for model_name in groq_llms
+]
+
+
+model = model.with_fallbacks(main_llms_fallback_models)
 
 #state
 class TestState(TypedDict):
@@ -184,7 +214,7 @@ def code_runner_node(state:TestState) -> TestState :
     chain = prompt | str_runner_model 
     response = chain.invoke({"code": state['newcode'],"total_tests": state["total_tests"], "tests": state["tests"]})
 
-    return {"code_feedback": response.feedback, "pass_tests": response.pass_tests, "verdict": response.verdict}
+    return {"code_feedback": response.feedback, "pass_tests": response.pass_tests, "verdict": response.verdict, "attempt" : state["attempt"]+1}
 
 def approve_node(state:TestState) -> TestState: 
     if state["total_tests"] == state["pass_tests"] : 
