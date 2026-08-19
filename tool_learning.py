@@ -37,7 +37,7 @@ tool_node = ToolNode(tools)
 
 # ---- nodes ----
 def chat_node(state: ChatState) -> ChatState:
-    response = model.invoke(state["messages"])
+    response = model_with_tools.invoke(state["messages"])
     return {"messages": [response]}
 
 
