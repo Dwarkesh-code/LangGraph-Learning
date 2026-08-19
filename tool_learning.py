@@ -48,7 +48,8 @@ graph.add_node("tools", tool_node)
 
 graph.add_edge(START, "chat")
 graph.add_conditional_edges("chat", tools_condition)
-graph.add_edge("chat", END)  
+graph.add_edge("tools", "chat")
+
 
 workflow = graph.compile()
 
