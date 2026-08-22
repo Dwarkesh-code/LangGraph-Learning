@@ -2,19 +2,33 @@ import uuid
 
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
+import tempfile
 
+from tools import TOOLS as BASE_TOOLS
+from rag import gen_vectorstores, make_retriever_tool
 from chatbot import build_graph, get_checkpointer, list_threads
 
 st.set_page_config(page_title="LangGraph Chatbot", page_icon="🤖")
 
 
-@st.cache_resource
-def load_graph():
-    checkpointer = get_checkpointer()
-    return build_graph(checkpointer), checkpointer
 
+# file uploader
 
-graph, checkpointer = load_graph()
+uploaded_file = st.sidebar.file_uploader("Upload PDF", type="pdf")
+
+if uploaded_file and "retriever" not in st.session_state:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(uploaded_file.getvalue())
+        tmp_path = tmp.name
+
+    st.session_state.retriever = gen_vectorstores(tmp_path)
+
+tools = BASE_TOOLS.copy()
+if "retriever" in st.session_state:
+    tools.append(make_retriever_tool(st.session_state.retriever))
+
+checkpointer = get_checkpointer()
+graph = build_graph(checkpointer, tools)
 
 # ---------------------------------------------------------------------------
 # Sidebar: thread management (this is the "persistence" piece from the video)
