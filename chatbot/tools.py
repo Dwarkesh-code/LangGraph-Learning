@@ -11,6 +11,7 @@ way these are wrapped, then add it to TOOLS.
 from datetime import datetime
 
 import yfinance as yf
+from langgraph.types import interrupt
 
 from ddgs import DDGS
 from langchain_core.tools import tool
@@ -78,12 +79,19 @@ def get_stock_price(ticker: str) -> str:
 @tool
 def buy_stock(ticker: str, quantity: int) -> str:
     """Simulate buying a given quantity of a stock. This is a DUMMY tool — no real trade happens."""
-    # yahan real broker API call nahi hai, bas simulate kar rahe hain
-    fake_order_id = f"ORD-{ticker.upper()}-{quantity}"
-    return (
-        f"[SIMULATED] Order placed: BUY {quantity} share(s) of {ticker.upper()}. "
-        f"Order ID: {fake_order_id}. (No real money/shares involved.)"
-    )
+
+    decision = interrupt({
+        "Action" : "buy_stock",
+        "ticker" : ticker.upper(),
+        "quantity" : quantity,
+        "message": "Buying {quantity} share(s) of {ticker.upper()}? (Yes | No)"
+    })
+    
+    if decision.get("approved"):
+        fake_order_id = f"ORD-{ticker.upper()}-{quantity}"
+        return f"[SIMULATED] Order placed: BUY {quantity} share(s) of {ticker.upper()}. Order ID: {fake_order_id}."
+    else:
+        return f"Order for {quantity} share(s) of {ticker.upper()} was rejected by the user."
 
 
 # ---------------------------------------------------------------------------

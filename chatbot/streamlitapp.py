@@ -3,7 +3,7 @@ import uuid
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
 import tempfile
-
+from langgraph.types import Command
 from tools import TOOLS as BASE_TOOLS
 from rag import gen_vectorstores, make_retriever_tool
 from chatbot import build_graph, get_checkpointer, list_threads
@@ -74,6 +74,11 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
+    current_state = graph.get_state(config)
+    if current_state.tasks and current_state.tasks[0].interrupts:
+        st.session_state.pending_interrupt = current_state.tasks[0].interrupts[0].value
+        st.rerun()
+
     with st.chat_message("assistant"):
         placeholder = st.empty()
         status = st.empty()
@@ -101,3 +106,22 @@ if user_input:
                     full_text += content
                     placeholder.markdown(full_text)
         status.empty()
+
+
+if st.session_state.get("pending_interrupt"):
+    data = st.session_state.pending_interrupt
+    st.warning(data.get("message", "\nApprove this action?"))
+
+    col1, col2 = st.columns(2)
+    approve_clicked = col1.button("✅ Approve")
+    reject_clicked = col2.button("❌ Reject")
+
+    if approve_clicked or reject_clicked:
+        st.session_state.pending_interrupt = None
+        for chunk, metadata in graph.stream(
+            Command(resume={"approved": approve_clicked}),
+            config=config,
+            stream_mode="messages",
+        ):
+            pass
+        st.rerun()
