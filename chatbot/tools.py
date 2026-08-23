@@ -10,6 +10,8 @@ way these are wrapped, then add it to TOOLS.
 
 from datetime import datetime
 
+import yfinance as yf
+
 from ddgs import DDGS
 from langchain_core.tools import tool
 
@@ -58,8 +60,34 @@ def count_words(text: str) -> str:
     return f"{words} words, {chars} characters"
 
 
+@tool
+def get_stock_price(ticker: str) -> str:
+    """Get the current/latest stock price for a given ticker symbol (e.g. AAPL, TSLA, RELIANCE.NS)."""
+    try:
+        stock = yf.Ticker(ticker)
+        data = stock.history(period="1d")
+        if data.empty:
+            return f"Couldn't find price data for ticker '{ticker}'. Check the symbol."
+        price = round(data["Close"].iloc[-1], 2)
+        currency = stock.info.get("currency", "USD")
+        return f"{ticker.upper()} current price: {price} {currency}"
+    except Exception as e:
+        return f"Error fetching price for {ticker}: {str(e)}"
+
+
+@tool
+def buy_stock(ticker: str, quantity: int) -> str:
+    """Simulate buying a given quantity of a stock. This is a DUMMY tool — no real trade happens."""
+    # yahan real broker API call nahi hai, bas simulate kar rahe hain
+    fake_order_id = f"ORD-{ticker.upper()}-{quantity}"
+    return (
+        f"[SIMULATED] Order placed: BUY {quantity} share(s) of {ticker.upper()}. "
+        f"Order ID: {fake_order_id}. (No real money/shares involved.)"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Registered tools - append your RAG retriever tool to this list
 # ---------------------------------------------------------------------------
 
-TOOLS = [calculator, get_current_time, web_search, count_words]
+TOOLS = [calculator, get_current_time, web_search, count_words, get_stock_price, buy_stock]
