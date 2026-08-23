@@ -64,9 +64,17 @@ history = state.values.get("messages", []) if state.values else []
 for msg in history:
     role = "user" if isinstance(msg, HumanMessage) else "assistant"
     if isinstance(msg, AIMessage) and not msg.content:
-        continue  # skip tool-call-only messages with no visible text
+        continue
+    
+    content = msg.content
+    if isinstance(content, list):
+        content = "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in content
+        )
+    
     with st.chat_message(role):
-        st.markdown(msg.content)
+        st.markdown(content)
 
 user_input = st.chat_input("Ask me anything, or give me a sum to calculate...")
 
