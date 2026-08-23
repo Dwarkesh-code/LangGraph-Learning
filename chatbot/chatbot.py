@@ -4,15 +4,15 @@ import sqlite3
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
-from typing import Annotated, TypedDict
+from typing import Annotated, TypedDict 
 
 
 
-from tools import TOOLS
 
 load_dotenv()
 
@@ -23,17 +23,9 @@ class ChatState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
 
-llm = ChatNVIDIA(model="minimaxai/minimax-m3")
-llm_with_tools = llm.bind_tools(TOOLS)
-
-
-def chat_node(state: ChatState) -> dict:
-    response = llm_with_tools.invoke(state["messages"])
-    return {"messages": [response]}
-
 
 def build_graph(checkpointer, tools):
-    llm = ChatNVIDIA(model="minimaxai/minimax-m3")
+    llm = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite")
     llm_with_tools = llm.bind_tools(tools)
 
     def chat_node(state: ChatState) -> dict:

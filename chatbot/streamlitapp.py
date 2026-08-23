@@ -91,7 +91,13 @@ if user_input:
                 continue
 
             if node == "chat_node" and getattr(chunk, "content", None):
-                full_text += chunk.content
-                placeholder.markdown(full_text)
-
+                content = chunk.content
+                if isinstance(content, list):
+                    content = "".join(
+                        block.get("text", "") if isinstance(block, dict) else str(block)
+                        for block in content
+                    )
+                if content:
+                    full_text += content
+                    placeholder.markdown(full_text)
         status.empty()
