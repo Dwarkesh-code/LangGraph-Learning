@@ -49,7 +49,12 @@ class TestState(TypedDict):
     coder_prompt : str
     tester_prompt : str
     final_code : str
+    verdict : str
+    pass_tests : int
+    attempt : int
+    code_feedback : str
 
+    
 class CoderState(TypedDict):
     precode : str
     newcode : str
@@ -277,7 +282,14 @@ def final_code_node(state:TestState) -> TestState:
     
     final_code = codergraph.invoke(coder_initial_state)
 
-    return {"final_code": final_code["newcode"] }
+    return {
+        "final_code": final_code["newcode"],
+        "verdict": final_code["verdict"],
+        "pass_tests": final_code["pass_tests"],
+        "attempt": final_code["attempt"],
+        "code_feedback": final_code["code_feedback"],
+    }
+
 
 #graph 
 
