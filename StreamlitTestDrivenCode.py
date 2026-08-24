@@ -5,7 +5,6 @@ import os
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
-
 st.title("Code Writer + Tester Agent")
 
 user_query = st.text_input("Enter your query")
@@ -17,15 +16,14 @@ if st.button("Run"):
         initial_state: TestState = {
             "query": user_query,
             "tests": [],
-            "precode": "",
-            "newcode": "",
             "total_tests": 0,
-            "verdict": "pending",
             "coder_prompt": "",
             "tester_prompt": "",
-            "code_feedback": "",
+            "final_code": "",
+            "verdict": "pending",
+            "pass_tests": 0,
             "attempt": 1,
-            "pass_tests": 0
+            "code_feedback": "",
         }
 
         status_box = st.status("Starting workflow...", expanded=True)
@@ -53,19 +51,15 @@ if st.button("Run"):
                     )
 
                 elif node_name == "coder":
-                    status_box.write(f"Coder: wrote code (attempt {final_state.get('attempt', 1)})")
-                    code_placeholder.code(node_output.get("newcode", ""), language="python")
-
-                elif node_name == "runner":
+                    # this node runs the full internal retry loop (coder -> runner -> approve)
+                    # and only reports back once it's fully done
                     status_box.write(
-                        f"Runner: {node_output.get('pass_tests', 0)}/{final_state.get('total_tests', 0)} tests passed "
+                        f"Coder: finished after {node_output.get('attempt', 1)} attempt(s) "
                         f"-> verdict: {node_output.get('verdict', '')}"
                     )
-                    with status_box.expander("Runner feedback"):
+                    code_placeholder.code(node_output.get("final_code", ""), language="python")
+                    with status_box.expander("Final feedback"):
                         st.write(node_output.get("code_feedback", ""))
-
-                elif node_name == "approve":
-                    status_box.write(f"Approve node: final verdict = {node_output.get('verdict', '')}")
 
                 final_state = {**final_state, **node_output}
 
@@ -75,7 +69,7 @@ if st.button("Run"):
         st.write(f"Passed: {final_state['pass_tests']}/{final_state['total_tests']}")
 
         st.subheader(f"Final Code (attempt {final_state['attempt']})")
-        st.code(final_state['newcode'], language="python")
+        st.code(final_state['final_code'], language="python")
 
         st.subheader("Feedback")
         st.write(final_state['code_feedback'])
