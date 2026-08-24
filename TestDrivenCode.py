@@ -1,9 +1,8 @@
 from langchain_groq import ChatGroq
 from langgraph.graph import StateGraph, START, END
 from dotenv import load_dotenv
-from typing import TypedDict, Annotated,Literal
+from typing import TypedDict,Literal
 from pydantic import BaseModel, Field
-from operator import add
 from langchain_core.prompts import PromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -45,17 +44,22 @@ model = model.with_fallbacks(main_llms_fallback_models)
 #state
 class TestState(TypedDict):
     query : str
-    tests : Annotated[list[str], add]
-    precode : str
-    newcode : str
+    tests : list[str]
     total_tests : int
-    verdict : Literal['approved', 'pending']
     coder_prompt : str
     tester_prompt : str
+    final_code : str
+
+class CoderState(TypedDict):
+    precode : str
+    newcode : str
     code_feedback : str
     attempt : int
+    verdict : Literal['approved', 'pending']
+    sub_tests : list[str]
+    sub_total_tests : int
     pass_tests : int
-
+    sub_coder_prompt : str
 
 #pydantic 
 
@@ -114,7 +118,7 @@ def summarize_query_node(state: TestState) -> TestState:
     }
 
 
-def code_writer_node(state:TestState) -> TestState:
+def code_writer_node(state:CoderState) -> CoderState:
     #prompt 
     prompt = PromptTemplate.from_template("""
         You are an expert Python developer who writes production-grade functions.
@@ -143,7 +147,7 @@ def code_writer_node(state:TestState) -> TestState:
 
     #invoke
     chain = prompt| model 
-    raw = chain.invoke({"instruction": state["coder_prompt"], "feedback": state["code_feedback"], "precode": state["precode"]}).content
+    raw = chain.invoke({"instruction": state["sub_coder_prompt"], "feedback": state["code_feedback"], "precode": state["precode"]}).content
 
     if isinstance(raw, list):
         response = "".join(
@@ -189,7 +193,7 @@ def test_designer_node(state:TestState) -> TestState:
     return {"tests": [response.tests], "total_tests" : response.total_tests}
 
 
-def code_runner_node(state:TestState) -> TestState : 
+def code_runner_node(state:CoderState) -> CoderState : 
     #prompt 
     prompt = PromptTemplate.from_template("""
         You are a meticulous Python interpreter. Execute the function below against each test case with perfect accuracy — do not assume, do not approximate.
@@ -221,12 +225,12 @@ def code_runner_node(state:TestState) -> TestState :
         """)
 
     chain = prompt | str_runner_model 
-    response = chain.invoke({"code": state['newcode'],"total_tests": state["total_tests"], "tests": state["tests"]})
+    response = chain.invoke({"code": state['newcode'],"total_tests": state["sub_total_tests"], "tests": state["sub_tests"]})
 
     return {"code_feedback": response.feedback, "pass_tests": response.pass_tests, "verdict": response.verdict, "attempt" : state["attempt"]+1}
 
-def approve_node(state:TestState) -> TestState: 
-    if state["total_tests"] == state["pass_tests"] : 
+def approve_node(state:CoderState) -> CoderState: 
+    if state["sub_total_tests"] == state["pass_tests"] : 
         state["verdict"] = "approved"
 
     state["verdict"] = state["verdict"]
@@ -234,12 +238,46 @@ def approve_node(state:TestState) -> TestState:
 
 MAX_ATTEMPTS = 7
 
-def route_verdict(state: TestState) -> str:
+def route_verdict(state: CoderState) -> str:
     if state["verdict"] == "approved":
         return "approved"
     if state["attempt"] > MAX_ATTEMPTS:
         return "approved"   
     return "pending"
+
+
+#sub graph
+
+codergraph_builder = StateGraph(CoderState)
+codergraph_builder.add_node("coder", code_writer_node)
+codergraph_builder.add_node("runner", code_runner_node)
+codergraph_builder.add_node("approve", approve_node)
+
+#Sub edges 
+codergraph_builder.add_edge(START, "coder")
+codergraph_builder.add_edge("coder", "runner")
+codergraph_builder.add_edge("runner", "approve")
+codergraph_builder.add_conditional_edges("approve", route_verdict, {'approved': END, 'pending': "coder"})
+
+#codergraph
+codergraph = codergraph_builder.compile()
+
+def final_code_node(state:TestState) -> TestState: 
+    coder_initial_state: CoderState = {
+        "precode": "",
+        "newcode": "",
+        "code_feedback": "",
+        "attempt": 1,
+        "verdict": "pending",
+        "sub_tests": state["tests"],
+        "sub_total_tests": state["total_tests"],
+        "pass_tests": 0,
+        "sub_coder_prompt" : state["coder_prompt"]
+        }
+    
+    final_code = codergraph.invoke(coder_initial_state)
+
+    return {"final_code": final_code["newcode"] }
 
 #graph 
 
@@ -247,20 +285,17 @@ graph = StateGraph(TestState)
 
 #add nodes 
 graph.add_node("summarizer", summarize_query_node)
-graph.add_node("coder", code_writer_node)
+graph.add_node("coder", final_code_node)
 graph.add_node("tester", test_designer_node)
-graph.add_node("runner", code_runner_node)
-graph.add_node("approve", approve_node)
+
 
 #add edges
 graph.add_edge(START, "summarizer")
-graph.add_edge("summarizer", "coder")
-graph.add_edge("summarizer", "tester")
-graph.add_edge("tester", "runner")
-graph.add_edge("coder", "runner")
-graph.add_edge("runner", "approve")
+graph.add_edge("summarizer","tester")
+graph.add_edge("tester","coder")
+graph.add_edge("coder", END)
 
-graph.add_conditional_edges("approve", route_verdict, {'approved': END, 'pending': "coder"})
+
 
 #workflow 
 workflow = graph.compile()
@@ -272,27 +307,21 @@ if __name__ == "__main__":
     initial_state: TestState = {
         "query": user_query,
         "tests": [],
-        "precode": "",
-        "newcode": "",
         "total_tests": 0,
-        "verdict": "pending",
         "coder_prompt": "",
         "tester_prompt": "",
-        "code_feedback": "",
-        "attempt": 1,
-        "pass_tests": 0
+        "final_code": ""
     }
     
     result = workflow.invoke(initial_state)
     
     print("=" * 60)
-    print(f"FINAL VERDICT: {result['verdict']}")
-    print(f"Passed: {result['pass_tests']}/{result['total_tests']}")
+    print(f"FINAL CODE:")
     print("=" * 60)
-    print(f"FINAL CODE (attempt {result['attempt']}):")
-    print("=" * 60)
-    print(result['newcode'])
+    print(result['final_code'])
     print("\n" + "=" * 60)
-    print("FEEDBACK:")
+    print(f"Total Tests: {result['total_tests']}")
+    print("Tests Generated:")
+    for t in result['tests']:
+        print(t)
     print("=" * 60)
-    print(result['code_feedback'])
