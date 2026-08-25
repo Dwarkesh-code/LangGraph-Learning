@@ -3,5 +3,14 @@ langgraph
 langchain-core
 langchain-groq
 langchain-google-genai
+langchain-nvidia-ai-endpoints
+langchain-community
+langchain-text-splitters
+langchain-unstructured
 pydantic
 python-dotenv
+chromadb
+ddgs
+numexpr
+yfinance
+ratelimit
