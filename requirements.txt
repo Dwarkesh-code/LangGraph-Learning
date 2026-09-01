@@ -16,3 +16,4 @@ yfinance
 ratelimit
 youtube-search
 pytube
+youtube-transcript-api
