@@ -29,16 +29,6 @@ from youtube_transcript_api._errors import (
 import re
 
 def get_chunks(results) : 
-    transcript_list = []
-    for link, transcript in results.items() : 
-        if transcript : 
-            transcript_list.append(
-                Document(
-                    page_content=transcript,
-                    metadata={"Link": link}
-                )
-            )
-
     tokenizer = AutoTokenizer.from_pretrained("nvidia/nemotron-3-8b-chat-4k")
     text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
         tokenizer=tokenizer,
@@ -46,7 +36,11 @@ def get_chunks(results) :
         chunk_overlap= 1000
     )
 
-    chunks = text_splitter.split_documents(transcript_list)
+    chunks = []
+    for link, transcript in results.items():
+        if transcript:
+            for text in text_splitter.split_text(transcript):
+                chunks.append({"link": link, "text": text})
     return chunks 
 
 
