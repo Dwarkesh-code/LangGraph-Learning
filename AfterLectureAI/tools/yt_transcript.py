@@ -36,11 +36,12 @@ def get_chunks(results) :
         chunk_overlap= 1000
     )
 
-    chunks = []
+    combined = ""
     for link, transcript in results.items():
         if transcript:
-            for text in text_splitter.split_text(transcript):
-                chunks.append({"link": link, "text": text})
+            combined += f"\n\n[VIDEO START: {link}]\n{transcript}\n[VIDEO END]\n\n"
+    
+    chunks = text_splitter.split_text(combined)
     return chunks 
 
 
