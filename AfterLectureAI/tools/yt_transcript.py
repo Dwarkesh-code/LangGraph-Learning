@@ -7,8 +7,17 @@ Used right after link_extractor resolves raw user input into video IDs.
 pip install youtube-transcript-api
 """
 
-from typing import List, Dict, Optional
+from typing import Dict, Optional, Annotated
 from langchain_core.tools import tool
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from state import RouterState
+from langgraph.prebuilt import InjectedState
+from langgraph.types import Command
+from langchain_core.tools import tool, InjectedToolCallId
+from langchain_core.messages import ToolMessage
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+from transformers import AutoTokenizer
 
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api._errors import (
@@ -17,6 +26,33 @@ from youtube_transcript_api._errors import (
     VideoUnavailable,
 )
 
+import re
+
+def get_chunks(results) : 
+    transcript_list = []
+    for link, transcript in results.items() : 
+        if transcript : 
+            transcript_list.append(
+                Document(
+                    page_content=transcript,
+                    metadata={"Link": link}
+                )
+            )
+
+    tokenizer = AutoTokenizer.from_pretrained("nvidia/nemotron-3-8b-chat-4k")
+    text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+        tokenizer=tokenizer,
+        chunk_size= 100000,
+        chunk_overlap= 1000
+    )
+
+    chunks = text_splitter.split_documents(transcript_list)
+    return chunks 
+
+
+def get_video_id(url):
+    match = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|shorts/))([\w-]{11})', url)
+    return match.group(1) if match else None
 
 def _fetch_single_transcript(video_id: str) -> Optional[str]:
     """
@@ -24,34 +60,51 @@ def _fetch_single_transcript(video_id: str) -> Optional[str]:
     (transcripts disabled, video removed, no captions in any usable language).
     """
     try:
-        segments = YouTubeTranscriptApi.get_transcript(video_id)
+        segments = YouTubeTranscriptApi().fetch(video_id)
     except (TranscriptsDisabled, NoTranscriptFound, VideoUnavailable):
         return None
     except Exception:
         # catch-all so one bad video doesn't crash a whole playlist batch
         return None
 
-    return " ".join(seg["text"] for seg in segments)
+    return " ".join(seg.text for seg in segments)
 
 
 @tool
-def fetch_transcripts(video_ids: List[str]) -> Dict[str, Optional[str]]:
+def fetch_transcripts( state: Annotated[RouterState, InjectedState], tool_call_id: Annotated[str, InjectedToolCallId]) -> Command:
     """
-    Fetch transcripts for a list of YouTube video IDs.
-
-    Returns a dict mapping video_id -> transcript text (or None if that
-    video's transcript couldn't be fetched, e.g. captions disabled).
-
-    Call this after the link extractor tool has resolved raw input into
-    a clean list of video IDs.
-    """
+        Fetch YouTube transcripts for all video links already stored in state.
+        Call this AFTER the link extractor tool has populated `state["links"]`
+        with a clean list of YouTube URLs. No arguments needed — the tool pulls
+        video IDs and URLs directly from state.
+        Returns:
+            A Command that updates `state["transcripts"]` with a dict mapping
+            each video ID to its transcript text (or None if unavailable).
+        """
+    links = state['links']
     results: Dict[str, Optional[str]] = {}
-    for vid in video_ids:
-        results[vid] = _fetch_single_transcript(vid)
-    return results
+    for link in links:
+        vid = get_video_id(link)
+        results[link]  = _fetch_single_transcript(vid)
+
+    chunks = get_chunks(results)
+
+    return Command(
+                update={
+                    "transcripts": results,
+                    "messages": [
+                        ToolMessage(
+                            content="Done, all transcripts and chunks get from this tool and store in State ",
+                            tool_call_id=tool_call_id,
+                        )
+                    ],
+                    "chunks" : chunks
+                }
+            )
+    
 
 
 if __name__ == "__main__":
     # quick manual test
-    test_ids = ["dQw4w9WgXcQ"]  # replace with a real ID to sanity check
+    test_ids = ["TlDHVrTXKKw"]  
     print(fetch_transcripts.invoke({"video_ids": test_ids}))
