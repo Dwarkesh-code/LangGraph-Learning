@@ -13,6 +13,7 @@ import re
 from typing import List, Annotated
 
 from pytube import Playlist
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from state import RouterState
 from langgraph.prebuilt import InjectedState
 from langgraph.types import Command
