@@ -1,6 +1,6 @@
 from typing import Annotated, TypedDict 
 from langchain_core.messages import BaseMessage
-from operator import add 
+from operator import add , or_
 from langgraph.graph.message import add_messages
 
 # States
@@ -17,6 +17,6 @@ class RouterState(TypedDict):
     links : Annotated[list[str], add]
     messages: Annotated[list[BaseMessage], add_messages]
     chunks : Annotated[list[str], add]
-    transcript : str
-    summary : Annotated[list[str], add]
+    transcripts : str
+    summaries : Annotated[dict[str, str], or_]
     main_llm_prompt : str
