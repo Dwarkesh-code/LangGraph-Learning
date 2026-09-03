@@ -19,4 +19,5 @@ class RouterState(TypedDict):
     chunks : Annotated[list[str], add]
     transcripts : str
     summaries : Annotated[dict[str, str], or_]
+    core_keywords: Annotated[dict[str, str], or_]
     main_llm_prompt : str
