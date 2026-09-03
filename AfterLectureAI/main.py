@@ -119,12 +119,12 @@ main_state_graph_builder = StateGraph(MainState)
 
 main_state_graph_builder.add_node("router_step", final_node)
 main_state_graph_builder.add_node("main_llm", main_llm_node)
-main_state_graph_builder.add_node("tools", ToolNode(main_llm_tools))
+main_state_graph_builder.add_node("main_tools", ToolNode(main_llm_tools))
 
 main_state_graph_builder.add_edge(START, "router_step")
 main_state_graph_builder.add_edge("router_step", "main_llm")
 main_state_graph_builder.add_conditional_edges("main_llm", tools_condition)
-main_state_graph_builder.add_edge("tools", "main_llm")
+main_state_graph_builder.add_edge("main_tools", "main_llm")
 main_state_graph_builder.add_edge("main_llm", END)
 
 main_graph = main_state_graph_builder.compile(checkpointer=checkpointer)
