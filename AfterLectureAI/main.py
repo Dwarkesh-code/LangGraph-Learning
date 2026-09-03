@@ -36,7 +36,7 @@ from tools.summarizer import make_summarize_videos
 from tools.web_search import searcher
 summarizer_videos = make_summarize_videos(llm=llm)
 
-from prompts import ROUTER_SYSTEM_PROMPT
+from prompts import MAIN_LLM_SYSTEM_PROMPT, ROUTER_SYSTEM_PROMPT
 
 tools = [links_extractor, fetch_transcripts, summarizer_videos, searcher]
 
@@ -57,3 +57,17 @@ def router_node(state: RouterState):
         }
 
     return {"messages": [response]}
+
+main_llm_tools = [searcher]
+def main_llm_node(state: RouterState):
+    messages = state.get("main_llm_messages", [])
+
+    if not messages:
+        messages = [
+            SystemMessage(content=MAIN_LLM_SYSTEM_PROMPT),
+            HumanMessage(content=state["main_llm_prompt"]),
+        ]
+
+    response = llm.bind_tools(tools=main_llm_tools).invoke(messages)
+
+    return {"main_llm_messages": [response]}
