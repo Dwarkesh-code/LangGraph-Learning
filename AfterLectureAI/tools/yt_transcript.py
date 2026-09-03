@@ -101,5 +101,5 @@ def fetch_transcripts( state: Annotated[RouterState, InjectedState], tool_call_i
 
 if __name__ == "__main__":
     # quick manual test
-    test_ids = ["TlDHVrTXKKw"]  
-    print(fetch_transcripts.invoke({"video_ids": test_ids}))
+    test_ids = "8jLOx1hD3_o"  
+    print(_fetch_single_transcript(test_ids))
