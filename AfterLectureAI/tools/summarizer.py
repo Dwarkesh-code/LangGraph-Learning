@@ -8,6 +8,7 @@ from langchain_core.messages import ToolMessage
 from pydantic import BaseModel, Field
 from typing import Annotated
 from langchain_core.prompts import PromptTemplate
+import json
 
 
 class StructureOutput(BaseModel):
@@ -72,7 +73,7 @@ def make_summarize_videos(llm):
                 "summaries" : summaries,
                 "messages" : [
                         ToolMessage(
-                            content="Done, all summaries generated from this tool using Chunks and transcripts and store in State ",
+                            content=f"Done, all summaries generated from this tool using Chunks and transcripts and store in State. \n\n summaries => \n {json.dumps(summaries, indent=2)} ",
                             tool_call_id=tool_call_id,
                         )
                     ]
