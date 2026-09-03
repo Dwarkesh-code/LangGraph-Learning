@@ -89,7 +89,6 @@ router_graph_builder.add_node("tools", ToolNode(tools=tools))
 #edges
 
 router_graph_builder.add_edge(START, "router")
-router_graph_builder.add_node("tools", ToolNode(tools))
 router_graph_builder.add_conditional_edges("router", tools_condition)
 router_graph_builder.add_edge("tools", "router")
 router_graph_builder.add_edge("router", END)
@@ -123,9 +122,12 @@ main_state_graph_builder.add_node("main_tools", ToolNode(main_llm_tools))
 
 main_state_graph_builder.add_edge(START, "router_step")
 main_state_graph_builder.add_edge("router_step", "main_llm")
-main_state_graph_builder.add_conditional_edges("main_llm", tools_condition)
-main_state_graph_builder.add_edge("main_tools", "main_llm")
-main_state_graph_builder.add_edge("main_llm", END)
+main_state_graph_builder.add_conditional_edges(
+    "main_llm",
+    tools_condition,
+    {"tools": "main_tools", END: END},
+)
+
 
 main_graph = main_state_graph_builder.compile(checkpointer=checkpointer)
 
