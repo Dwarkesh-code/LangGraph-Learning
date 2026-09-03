@@ -41,11 +41,19 @@ from prompts import ROUTER_SYSTEM_PROMPT
 tools = [links_extractor, fetch_transcripts, summarizer_videos, searcher]
 
 def router_node(state: RouterState):
-    query = state["query"]
-    if not state["messages"] or not isinstance(state["messages"][0], SystemMessage):
-        state["messages"] = [SystemMessage(content=ROUTER_SYSTEM_PROMPT)] + state["messages"]
+    messages = state["messages"]
 
-    state["messages"] = [HumanMessage(content=query)] + state["messages"]
+    if not messages:
+        messages = [SystemMessage(content=ROUTER_SYSTEM_PROMPT)]
 
-    
+    messages = messages + [HumanMessage(content=state["query"])]
 
+    response = llm.bind_tools(tools=tools).invoke(messages)
+
+    if not response.tool_calls:
+        return {
+            "messages": [response],
+            "main_llm_prompt": response.content,
+        }
+
+    return {"messages": [response]}
