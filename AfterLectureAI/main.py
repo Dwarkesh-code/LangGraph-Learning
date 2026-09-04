@@ -156,18 +156,15 @@ main_state_graph_builder.add_conditional_edges(
 
 main_graph = main_state_graph_builder.compile(checkpointer=checkpointer)
 
-query = "https://www.youtube.com/playlist?list=PLKnIA16_RmvYsvB8qkUQuJmJNuiCUJFPL  suggest me projects for this playlist"
-
-initial_state = {
-    "query": query,
-    "messages": [],
-    "transcript_summary": "",
-    "main_llm_prompt": "",
-    "final_output": "",
-}
-
-config = {"configurable": {"thread_id": thread_id}}
-
-result = main_graph.invoke(initial_state, config=config)
-
-print(result)
+if __name__ == "__main__":
+    query = "https://www.youtube.com/playlist?list=PLKnIA16_RmvYsvB8qkUQuJmJNuiCUJFPL  suggest me projects for this playlist"
+    initial_state = {
+        "query": query,
+        "messages": [],
+        "transcript_summary": "",
+        "main_llm_prompt": "",
+        "final_output": "",
+    }
+    config = {"configurable": {"thread_id": thread_id}}
+    result = main_graph.invoke(initial_state, config=config)
+    print(result)
