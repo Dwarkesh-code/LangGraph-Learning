@@ -11,9 +11,10 @@ from langgraph.graph.message import add_messages
 from typing import Annotated, TypedDict 
 from operator import add 
 from langchain_core.rate_limiters import InMemoryRateLimiter
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, RemoveMessage
 from state import MainState, RouterState
 from langgraph.prebuilt import ToolNode, tools_condition
+from langchain_groq import ChatGroq
 
 load_dotenv()
 
@@ -24,12 +25,12 @@ thread_id = str(uuid.uuid4())
 
 # Rate limiter
 rate_limiter = InMemoryRateLimiter(
-    requests_per_second= 40/60,
+    requests_per_second= 30/60,
     check_every_n_seconds= 0.1,
     max_bucket_size= 1
 )
 
-llm = ChatNVIDIA(model="nvidia/nemotron-3-ultra-550b-a55b", rate_limiter= rate_limiter)
+llm = ChatGroq(model="openai/gpt-oss-120b", rate_limiter= rate_limiter, timeout=120)
 
 #short memory 
 DB_PATH = os.path.join(os.path.dirname(__file__), "AfterLectureAI_Memory.db")
@@ -49,6 +50,17 @@ tools = [links_extractor, fetch_transcripts, summarizer_videos, searcher]
 def router_node(state: RouterState):
     messages = state["messages"]
 
+
+    if len(messages) >2 : 
+        last_message_id = state["messages"][-1].id
+        
+    else :
+        last_message_id = None
+
+    print("ID = ")
+    print(last_message_id)
+    print("\n\n\n")
+
     if not messages:
         messages = [SystemMessage(content=ROUTER_SYSTEM_PROMPT)]
 
@@ -56,17 +68,30 @@ def router_node(state: RouterState):
 
     response = llm.bind_tools(tools=tools).invoke(messages)
 
+    if 'function' in response.additional_kwargs:
+
+        tool_msg = response.additional_kwargs['function']
+
+    else : 
+        tool_msg = response
+
+    print(response)
+    print("\n\n\n\n")
+    print(messages)
+    print("\n\n\n")
     if not response.tool_calls:
         return {
-            "messages": [response],
+            "messages": [
+                response         
+                ],
             "main_llm_prompt": response.content,
         }
 
-    return {"messages": [response]}
+    return {"messages": [ tool_msg]}
 
 main_llm_tools = [searcher]
 def main_llm_node(state: RouterState):
-    messages = state.get("main_llm_messages", [])
+    messages = state.get("messages", [])
 
     if not messages:
         messages = [
@@ -76,7 +101,7 @@ def main_llm_node(state: RouterState):
 
     response = llm.bind_tools(tools=main_llm_tools).invoke(messages)
 
-    return {"main_llm_messages": [response]}
+    return {"messages": [response]}
 
 
 # Router Graph 

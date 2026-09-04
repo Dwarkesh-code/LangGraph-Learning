@@ -29,7 +29,7 @@ from youtube_transcript_api._errors import (
 import re
 
 def get_chunks(results) : 
-    tokenizer = AutoTokenizer.from_pretrained("nvidia/nemotron-3-8b-chat-4k")
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
     text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
         tokenizer=tokenizer,
         chunk_size= 100000,
