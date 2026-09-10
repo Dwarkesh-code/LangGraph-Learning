@@ -83,8 +83,10 @@ def make_summarize_videos(llm):
         summaries = {}
         core_keywords = {}
 
-        for c in chunks:
-            result = chain.invoke({"videos": c})
+        inputs = [{"Chunks " : c} for c in chunks]
+        results = chain.batch(inputs, config={"max_concurrency": 25})
+
+        for result in results:
             summaries.update(result.summaries)
             core_keywords.update(result.core_keywords)
 

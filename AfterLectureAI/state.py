@@ -10,6 +10,9 @@ class MainState(TypedDict):
     transcript_summary : str
     main_llm_prompt : str
     final_output : str
+    chunks: Annotated[list[str], add]
+    links : Annotated[list[str], add]
+
 
 #Sub state
 class RouterState(TypedDict):

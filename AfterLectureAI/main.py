@@ -25,12 +25,12 @@ thread_id = str(uuid.uuid4())
 
 # Rate limiter
 rate_limiter = InMemoryRateLimiter(
-    requests_per_second= 30/60,
+    requests_per_second= 40/60,
     check_every_n_seconds= 0.1,
     max_bucket_size= 1
 )
 
-llm = ChatGroq(model="openai/gpt-oss-120b", rate_limiter= rate_limiter, timeout=120)
+llm = ChatNVIDIA(model="nvidia/nemotron-3-ultra-550b-a55b", rate_limiter= rate_limiter, timeout=120)
 
 #short memory 
 DB_PATH = os.path.join(os.path.dirname(__file__), "AfterLectureAI_Memory.db")
@@ -136,7 +136,9 @@ def final_node(state:MainState) -> MainState:
     router_result = router_graph.invoke(initial_state)
 
     return {
-        "main_llm_prompt": router_result["main_llm_prompt"],
+        "main_llm_prompt": router_result.get("main_llm_prompt", ""),
+        "chunks": router_result.get("chunks", []),
+        "links": router_result.get("links", []),
     }
 
 main_state_graph_builder = StateGraph(MainState)

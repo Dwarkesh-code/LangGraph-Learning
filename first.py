@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-model = ChatGroq(model="llama-3.1-8b-instant")
+model = ChatGroq(model="openai/gpt-oss-120b")
 
 def call_model(state: MessagesState):
     
@@ -18,5 +18,5 @@ graph.add_edge(START, "model")
 graph.add_edge("model", END)
 agent = graph.compile()
 
-response = agent.invoke({"messages": [{"role":"user", "content": "You're worst"}]})
+response = agent.invoke({"messages": [{"role":"user", "content": "today's date and time"}]})
 print(response["messages"][1].content)
