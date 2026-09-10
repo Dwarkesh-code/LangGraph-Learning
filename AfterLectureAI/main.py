@@ -90,7 +90,7 @@ def router_node(state: RouterState):
     return {"messages": [ tool_msg]}
 
 main_llm_tools = [searcher]
-def main_llm_node(state: RouterState):
+def main_llm_node(state: MainState):
     messages = state.get("messages", [])
 
     if not messages:
