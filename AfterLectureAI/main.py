@@ -30,7 +30,7 @@ rate_limiter = InMemoryRateLimiter(
     max_bucket_size= 1
 )
 
-llm = ChatNVIDIA(model="nvidia/nemotron-3-ultra-550b-a55b", rate_limiter= rate_limiter, timeout=120)
+llm = ChatNVIDIA(model="nvidia/nemotron-3-super-120b-a12b", rate_limiter= rate_limiter, timeout=120, max_completion_tokens=20000)
 
 #short memory 
 DB_PATH = os.path.join(os.path.dirname(__file__), "AfterLectureAI_Memory.db")
@@ -75,10 +75,7 @@ def router_node(state: RouterState):
     else : 
         tool_msg = response
 
-    print(response)
-    print("\n\n\n\n")
-    print(messages)
-    print("\n\n\n")
+
     if not response.tool_calls:
         return {
             "messages": [
@@ -160,13 +157,21 @@ main_graph = main_state_graph_builder.compile(checkpointer=checkpointer, store=s
 
 if __name__ == "__main__":
     query = "https://www.youtube.com/playlist?list=PLKnIA16_RmvYsvB8qkUQuJmJNuiCUJFPL  suggest me projects for this playlist"
-    initial_state = {
-        "query": query,
-        "messages": [],
-        "transcript_summary": "",
-        "main_llm_prompt": "",
-        "final_output": "",
-    }
-    config = {"configurable": {"thread_id": thread_id}}
-    result = main_graph.invoke(initial_state, config=config)
-    print(result)
+    while True :
+        query = input("You=  ")
+        initial_state = {
+                "query": query,
+                "links": [],
+                "messages": [],
+                "chunks": [],
+                "transcripts": "",
+                "summaries": {},
+                "core_keywords": {},
+                "main_llm_prompt": "",
+            }
+        
+        router_result = router_graph.invoke(initial_state)
+
+        print(router_result["messages"])
+        
+            
