@@ -1,6 +1,6 @@
 import os
 import sqlite3
-
+from tools.memory import store, memory_add, memory_view
 from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
@@ -45,7 +45,7 @@ summarizer_videos = make_summarize_videos(llm=llm)
 
 from prompts import MAIN_LLM_SYSTEM_PROMPT, ROUTER_SYSTEM_PROMPT
 
-tools = [links_extractor, fetch_transcripts, summarizer_videos, searcher]
+tools = [links_extractor, fetch_transcripts, summarizer_videos, searcher, memory_view, memory_add]
 
 def router_node(state: RouterState):
     messages = state["messages"]
@@ -89,7 +89,7 @@ def router_node(state: RouterState):
 
     return {"messages": [ tool_msg]}
 
-main_llm_tools = [searcher]
+main_llm_tools = [searcher, memory_add, memory_view]
 def main_llm_node(state: MainState):
     messages = state.get("messages", [])
 
@@ -119,7 +119,7 @@ router_graph_builder.add_edge("tools", "router")
 router_graph_builder.add_edge("router", END)
 
 
-router_graph = router_graph_builder.compile()
+router_graph = router_graph_builder.compile(store=store)
 
 def final_node(state:MainState) -> MainState: 
     initial_state = {
@@ -156,7 +156,7 @@ main_state_graph_builder.add_conditional_edges(
 )
 
 
-main_graph = main_state_graph_builder.compile(checkpointer=checkpointer)
+main_graph = main_state_graph_builder.compile(checkpointer=checkpointer, store=store)
 
 if __name__ == "__main__":
     query = "https://www.youtube.com/playlist?list=PLKnIA16_RmvYsvB8qkUQuJmJNuiCUJFPL  suggest me projects for this playlist"
