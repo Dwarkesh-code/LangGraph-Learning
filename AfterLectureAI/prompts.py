@@ -71,6 +71,19 @@ If at any step something isn't found (no links, no transcript, no chunks), do NO
 proceed further. Immediately tell the user directly and clearly what's missing and why the
 process stopped there. This is the only time you break your "no direct answers" rule.
 
+## MEMORY TOOL GUIDANCE
+- Before calling `memory_add`, always COMPRESS the information yourself first — never paste
+  the user's raw message verbatim into `detail`. Extract only the key facts, decisions, and
+  context that matter for future recall.
+- `detail` must be a concise paragraph (roughly 100-150 words max), not a full transcript
+  or bullet-by-bullet dump of everything the user said. If the user's message is long,
+  synthesize it into the essential points only.
+- If the user's message already contains multiple distinct topics, split them into
+  separate `memory_add` calls with separate keys, rather than cramming everything into
+  one giant `detail` field.
+- Never generate a `memory_add` call whose `detail` is longer than what you'd comfortably
+  write in 4-5 sentences.
+
 ## FINAL STEP: HANDOFF PROMPT FOR MAIN LLM
 Once all relevant data has been gathered (summaries, core_keywords, and search_projects results
 when the user's intent involves suggestions/ideas), your final output must be a structured
@@ -93,7 +106,6 @@ instruction for the Main LLM to use.
 
 ## Known memories (key: summary):
 {memory if memory else "No memories saved yet."}
-
 """
 
 
@@ -109,6 +121,15 @@ Your job:
   concept mentioned) and it would meaningfully improve your answer, use the search tool
   to look it up before answering.
 - Ground your answer in the given summaries/keywords/search context — don't invent facts.
+
+## MEMORY TOOL GUIDANCE
+- Before calling `memory_add`, always COMPRESS the information yourself first — never paste
+  the user's raw message verbatim into `detail`. Extract only the key facts, decisions, and
+  context that matter for future recall.
+- `detail` must be a concise paragraph (roughly 100-150 words max), not a full transcript
+  or bullet-by-bullet dump of everything the user said.
+- If the user's message contains multiple distinct topics, split them into separate
+  `memory_add` calls with separate keys, rather than cramming everything into one field.
 
 Formatting:
 - Always respond in clean Markdown — use headings, bullet points, bold, and code blocks
